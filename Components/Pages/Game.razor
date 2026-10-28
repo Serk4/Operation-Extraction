@@ -1,0 +1,181 @@
+@page "/game"
+@using Operation_Extraction.Models
+@inject IGameStateService GameState
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Operation Extraction</PageTitle>
+
+@if (GameState.Session is null)
+{
+    <div class="mobile-shell">
+        <div class="panel empty-state">
+            <h2>No active match</h2>
+            <button class="btn btn-primary action-button" @onclick="BackToRoster">Choose Hero</button>
+        </div>
+    </div>
+}
+else
+{
+    var session = GameState.Session;
+    var selectedDestination = session.SelectedDestination;
+    var distance = GameState.GetDistanceToSelectedTarget();
+    var requiredMovementCards = GameState.GetRequiredCardsForSelectedTarget();
+
+    <div class="mobile-shell game-shell">
+        <div class="panel stats-panel">
+            <div class="section-header tight-header">
+                <span class="eyebrow">Operator</span>
+                <h2>@session.SelectedHero.Name</h2>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span>Health</span>
+                    <strong>@session.Player.Health / @session.SelectedHero.MaxHealth</strong>
+                </div>
+                <div class="stat-box">
+                    <span>Armor</span>
+                    <strong>@session.Player.Armor</strong>
+                </div>
+                <div class="stat-box">
+                    <span>Turn</span>
+                    <strong>@session.TurnNumber</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel map-panel">
+            <div class="section-header tight-header">
+                <span class="eyebrow">Tactical Map</span>
+                <h2>10x10 Zone</h2>
+            </div>
+
+            @if (selectedDestination is not null)
+            {
+                <div class="route-summary">
+                    <span>Distance: @distance</span>
+                    <span>Required movement cards: @requiredMovementCards</span>
+                </div>
+            }
+
+            <svg viewBox="0 0 360 360" class="map-svg" role="img" aria-label="Extraction map">
+                @for (var x = 0; x < 10; x++)
+                {
+                    @for (var y = 0; y < 10; y++)
+                    {
+                        var tile = session.Map.Tiles[x, y];
+                        var isPlayer = session.Player.X == x && session.Player.Y == y;
+                        var isSelected = selectedDestination is not null && selectedDestination.X == x && selectedDestination.Y == y;
+                        var color = GetTileColor(tile.Type);
+                        var left = x * 36;
+                        var top = y * 36;
+
+                        <rect x="@left" y="@top" width="34" height="34" rx="6" fill="@color" stroke="@GetStrokeColor(isSelected, isPlayer)" stroke-width="@(isPlayer || isSelected ? 2 : 1)
+" @onclick="() => SelectTile(tile.X, tile.Y)" class="map-tile" />
+
+                        @if (tile.POI is not null)
+                        {
+                            var poi = tile.POI;
+                            var poiColor = poi is ExfilPoint ? "#fbbf24" : poi is InfilPoint ? "#34d399" : "#a78bfa";
+                            <circle cx="@(left + 17)" cy="@(top + 17)" r="6" fill="@poiColor" />
+                        }
+
+                        @if (isPlayer)
+                        {
+                            <circle cx="@(left + 17)" cy="@(top + 17)" r="8" fill="#f87171" />
+                        }
+                    }
+                }
+            </svg>
+        </div>
+
+        <div class="panel log-panel">
+            <div class="section-header tight-header">
+                <span class="eyebrow">Mission Log</span>
+                <h2>Events</h2>
+            </div>
+
+            <ul class="event-log">
+                @foreach (var entry in session.EventLog.TakeLast(6).Reverse())
+                {
+                    <li>@entry</li>
+                }
+            </ul>
+        </div>
+
+        <div class="panel hand-panel">
+            <div class="section-header tight-header">
+                <span class="eyebrow">Hand</span>
+                <h2>Available Cards</h2>
+            </div>
+
+            <div class="hand-grid">
+                @foreach (var card in session.CurrentHand)
+                {
+                    <button class="card-button" @onclick="() => PlayCard(card)">
+                        <span class="card-name">@card.Name</span>
+                        <span class="card-meta">@GetCardLabel(card)</span>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private void BackToRoster()
+    {
+        Navigation.NavigateTo("/heroes");
+    }
+
+    private void SelectTile(int x, int y)
+    {
+        GameState.SelectDestination(x, y);
+    }
+
+    private void PlayCard(Card card)
+    {
+        GameState.PlayCard(card);
+    }
+
+    private static string GetTileColor(TileType type) => type switch
+    {
+        TileType.Open => "#1f2937",
+        TileType.Forest => "#14532d",
+        TileType.Ruins => "#7c2d12",
+        TileType.Street => "#374151",
+        TileType.Water => "#0f172a",
+        _ => "#1f2937"
+    };
+
+    private static string GetStrokeColor(bool isSelected, bool isPlayer)
+    {
+        if (isPlayer)
+        {
+            return "#f87171";
+        }
+
+        if (isSelected)
+        {
+            return "#fbbf24";
+        }
+
+        return "#475569";
+    }
+
+    private static string GetCardLabel(Card card)
+    {
+        if (card.Type == CardType.Movement)
+        {
+            return $"Move {card.MovementValue}";
+        }
+
+        if (card.Type == CardType.Combat)
+        {
+            return card.Damage > 0 ? $"DMG {card.Damage}" : $"ARM {card.ArmorValue}";
+        }
+
+        return card.HealValue > 0 ? $"HEAL {card.HealValue}" : $"ARM {card.ArmorValue}";
+    }
+}

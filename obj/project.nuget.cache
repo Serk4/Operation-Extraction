@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "HQ81xl632Vw=",
+  "success": true,
+  "projectFilePath": "/home/runner/work/Operation-Extraction/Operation-Extraction/Operation-Extraction.csproj",
+  "expectedPackageFiles": [
+    "/tmp/codeql-scratch-2e9bd3a43eb9087b/dbs/csharp/working/packages/microsoft.netcore.app.ref/9.0.20/microsoft.netcore.app.ref.9.0.20.nupkg.sha512",
+    "/tmp/codeql-scratch-2e9bd3a43eb9087b/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/9.0.20/microsoft.aspnetcore.app.ref.9.0.20.nupkg.sha512",
+    "/tmp/codeql-scratch-2e9bd3a43eb9087b/dbs/csharp/working/packages/microsoft.netcore.app.host.linux-x64/9.0.20/microsoft.netcore.app.host.linux-x64.9.0.20.nupkg.sha512"
+  ],
+  "logs": []
+}
