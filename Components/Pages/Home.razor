@@ -1,0 +1,28 @@
+@page "/"
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Operation Extraction</PageTitle>
+
+<div class="mobile-shell">
+    <div class="panel hero-panel">
+        <span class="eyebrow">Mission Brief</span>
+        <h1>Operation Extraction</h1>
+        <p class="lead">Mobile-first extraction gameplay built for quick tactical turns and clean map control.</p>
+
+        <button class="btn btn-primary action-button" @onclick="StartMatch">Start Match</button>
+        <button class="btn btn-outline-secondary action-button" @onclick="ViewHeroes">View Heroes</button>
+    </div>
+</div>
+
+@code {
+    private void StartMatch()
+    {
+        Navigation.NavigateTo("/heroes");
+    }
+
+    private void ViewHeroes()
+    {
+        Navigation.NavigateTo("/heroes");
+    }
+}
