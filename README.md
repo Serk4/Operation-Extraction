@@ -6,8 +6,10 @@ Operation Extraction is a mobile-first ASP.NET Core 9 Blazor MVP for a turn-base
 - 10x10 SVG tactical map
 - Hero selection with twelve operators
 - In-memory match state with no database or auth requirements
-- Movement, combat, and loot cards
-- Deterministic encounter resolution for MVP play
+- Rules-based 36-card deck (movement, combat, utility)
+- Turn flow with encounter rolls, combat, loot effects, and deck reshuffle
+- Coordinate-indexed board with tactical markers for infil, exfil, POIs, and dynamic locations
+- In-match hero card with base stats and live updated stats
 - Responsive mobile-first interfaces using Bootstrap 5
 
 ## Prerequisites

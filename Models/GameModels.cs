@@ -14,6 +14,7 @@ public class Hero
     public int MaxHealth { get; set; } = 100;
     public int Armor { get; set; } = 0;
     public int Movement { get; set; } = 3;
+    public int GunStrength { get; set; } = 5;
 }
 
 /// <summary>
@@ -26,6 +27,7 @@ public class Player
     public int Y { get; set; }
     public int Health { get; set; }
     public int Armor { get; set; }
+    public int GunStrength { get; set; }
     public List<LootItem> Inventory { get; set; } = new();
 }
 
@@ -160,13 +162,18 @@ public class GameSession
     public List<Card> DiscardPile { get; set; } = new();
     public List<InfilPoint> InfilPoints { get; set; } = new();
     public List<ExfilPoint> ExfilPoints { get; set; } = new();
+    public List<POI> FixedPOIs { get; set; } = new();
     public List<POI> DynamicPOIs { get; set; } = new();
     public ExfilPoint? CurrentTargetExfil { get; set; }
     public List<LootItem> LootInventory { get; set; } = new();
     public List<string> EventLog { get; set; } = new();
     public MapTile? SelectedDestination { get; set; }
     public int TurnNumber { get; set; } = 1;
+    public int PendingMovement { get; set; }
+    public Enemy? ActiveEnemy { get; set; }
     public string LastMessage { get; set; } = string.Empty;
+    public bool IsExtracted { get; set; }
+    public bool IsDefeated { get; set; }
     public bool IsStarted { get; set; }
 }
 

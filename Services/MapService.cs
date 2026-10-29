@@ -45,6 +45,39 @@ public class MapService : IMapService
         return map;
     }
 
+    public List<POI> GenerateFixedPOIs(GameMap map)
+    {
+        var fixedPoiDefinitions = new[]
+        {
+            new { Name = "Police Station", Description = "Law enforcement outpost.", X = 2, Y = 2 },
+            new { Name = "Gas Station", Description = "Fuel and roadside stop.", X = 7, Y = 1 },
+            new { Name = "Hospital", Description = "Medical complex.", X = 1, Y = 7 },
+            new { Name = "Shopping Mall", Description = "Large indoor plaza.", X = 5, Y = 6 },
+            new { Name = "Radio Tower", Description = "High-ground communications node.", X = 8, Y = 5 }
+        };
+
+        var points = new List<POI>();
+        foreach (var definition in fixedPoiDefinitions)
+        {
+            var tile = map.GetTile(definition.X, definition.Y);
+            tile.IsBlocked = false;
+
+            var poi = new POI
+            {
+                Name = definition.Name,
+                Description = definition.Description,
+                X = definition.X,
+                Y = definition.Y,
+                IsDynamic = false
+            };
+
+            tile.POI = poi;
+            points.Add(poi);
+        }
+
+        return points;
+    }
+
     public List<InfilPoint> GenerateInfilPoints(GameMap map)
     {
         var points = new List<InfilPoint>();
@@ -53,7 +86,7 @@ public class MapService : IMapService
             var x = _random.Next(0, GameMap.GridSize);
             var y = _random.Next(0, GameMap.GridSize);
 
-            if (map.Tiles[x, y].IsBlocked)
+            if (map.Tiles[x, y].IsBlocked || map.Tiles[x, y].POI is not null)
             {
                 continue;
             }

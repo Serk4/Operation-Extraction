@@ -21,27 +21,49 @@ else
     var selectedDestination = session.SelectedDestination;
     var distance = GameState.GetDistanceToSelectedTarget();
     var requiredMovementCards = GameState.GetRequiredCardsForSelectedTarget();
+    var currentPositionLabel = FormatCoordinate(session.Player.X, session.Player.Y);
+    var targetExfilLabel = session.CurrentTargetExfil is null
+        ? "Not set"
+        : $"{session.CurrentTargetExfil.Name} ({FormatCoordinate(session.CurrentTargetExfil.X, session.CurrentTargetExfil.Y)})";
 
     <div class="mobile-shell game-shell">
-        <div class="panel stats-panel">
+        <div class="panel hero-match-card">
             <div class="section-header tight-header">
-                <span class="eyebrow">Operator</span>
+                <span class="eyebrow">Hero Card</span>
                 <h2>@session.SelectedHero.Name</h2>
             </div>
+            <p class="hero-match-meta">@session.SelectedHero.Role • @session.SelectedHero.Specialty</p>
 
-            <div class="stats-grid">
+            <div class="hero-stats-grid">
                 <div class="stat-box">
-                    <span>Health</span>
-                    <strong>@session.Player.Health / @session.SelectedHero.MaxHealth</strong>
+                    <span>Health (Base / Current)</span>
+                    <strong>@session.SelectedHero.MaxHealth / @session.Player.Health</strong>
                 </div>
                 <div class="stat-box">
-                    <span>Armor</span>
-                    <strong>@session.Player.Armor</strong>
+                    <span>Armor (Base / Current)</span>
+                    <strong>@session.SelectedHero.Armor / @session.Player.Armor</strong>
+                </div>
+                <div class="stat-box">
+                    <span>Gun (Base / Current)</span>
+                    <strong>@session.SelectedHero.GunStrength / @session.Player.GunStrength</strong>
+                </div>
+                <div class="stat-box">
+                    <span>Movement (Base)</span>
+                    <strong>@session.SelectedHero.Movement</strong>
                 </div>
                 <div class="stat-box">
                     <span>Turn</span>
                     <strong>@session.TurnNumber</strong>
                 </div>
+                <div class="stat-box">
+                    <span>Status</span>
+                    <strong>@GetMatchStatusLabel(session)</strong>
+                </div>
+            </div>
+
+            <div class="hero-card-footer">
+                <span>POS @currentPositionLabel</span>
+                <span>EXFIL @targetExfilLabel</span>
             </div>
         </div>
 
@@ -55,39 +77,81 @@ else
             {
                 <div class="route-summary">
                     <span>Distance: @distance</span>
+                    <span>Movement Progress: @session.PendingMovement / @distance</span>
                     <span>Required movement cards: @requiredMovementCards</span>
                 </div>
             }
 
-            <svg viewBox="0 0 360 360" class="map-svg" role="img" aria-label="Extraction map">
-                @for (var x = 0; x < 10; x++)
-                {
-                    @for (var y = 0; y < 10; y++)
+            <div class="indexed-map-shell">
+                <div class="map-axis-x">
+                    @for (var x = 0; x < 10; x++)
                     {
-                        var tile = session.Map.Tiles[x, y];
-                        var isPlayer = session.Player.X == x && session.Player.Y == y;
-                        var isSelected = selectedDestination is not null && selectedDestination.X == x && selectedDestination.Y == y;
-                        var color = GetTileColor(tile.Type);
-                        var left = x * 36;
-                        var top = y * 36;
+                        <span>@GetColumnLabel(x)</span>
+                    }
+                </div>
 
-                        <rect x="@left" y="@top" width="34" height="34" rx="6" fill="@color" stroke="@GetStrokeColor(isSelected, isPlayer)" stroke-width="@(isPlayer || isSelected ? 2 : 1)
+                <div class="indexed-map-body">
+                    <div class="map-axis-y">
+                        @for (var y = 0; y < 10; y++)
+                        {
+                            <span>@(y + 1)</span>
+                        }
+                    </div>
+
+                    <svg viewBox="0 0 360 360" class="map-svg" role="img" aria-label="Extraction map with coordinates and markers">
+                        @for (var x = 0; x < 10; x++)
+                        {
+                            @for (var y = 0; y < 10; y++)
+                            {
+                                var tile = session.Map.Tiles[x, y];
+                                var isPlayer = session.Player.X == x && session.Player.Y == y;
+                                var isSelected = selectedDestination is not null && selectedDestination.X == x && selectedDestination.Y == y;
+                                var color = GetTileColor(tile.Type);
+                                var left = x * 36;
+                                var top = y * 36;
+                                var centerX = left + 17;
+                                var centerY = top + 17;
+
+                                <rect x="@left" y="@top" width="34" height="34" rx="6" fill="@color" stroke="@GetStrokeColor(isSelected, isPlayer)" stroke-width="@(isPlayer || isSelected ? 2 : 1)
 " @onclick="() => SelectTile(tile.X, tile.Y)" class="map-tile" />
 
-                        @if (tile.POI is not null)
-                        {
-                            var poi = tile.POI;
-                            var poiColor = poi is ExfilPoint ? "#fbbf24" : poi is InfilPoint ? "#34d399" : "#a78bfa";
-                            <circle cx="@(left + 17)" cy="@(top + 17)" r="6" fill="@poiColor" />
-                        }
+                                @if (tile.POI is not null && !isPlayer)
+                                {
+                                    @if (tile.POI is InfilPoint)
+                                    {
+                                        <polygon points="@GetTrianglePoints(centerX, centerY)" fill="#6ee7b7" />
+                                    }
+                                    else if (tile.POI is ExfilPoint)
+                                    {
+                                        <polygon points="@GetDiamondPoints(centerX, centerY)" fill="#fcd34d" />
+                                    }
+                                    else if (tile.POI.IsDynamic)
+                                    {
+                                        <rect x="@(centerX - 5)" y="@(centerY - 5)" width="10" height="10" fill="#93c5fd" />
+                                    }
+                                    else
+                                    {
+                                        <circle cx="@centerX" cy="@centerY" r="6" fill="#c4b5fd" />
+                                    }
+                                }
 
-                        @if (isPlayer)
-                        {
-                            <circle cx="@(left + 17)" cy="@(top + 17)" r="8" fill="#f87171" />
+                                @if (isPlayer)
+                                {
+                                    <circle cx="@centerX" cy="@centerY" r="8" fill="#f87171" />
+                                }
+                            }
                         }
-                    }
-                }
-            </svg>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="map-legend">
+                <span><strong>● Red</strong> Operator</span>
+                <span><strong>▲ Green</strong> Infil</span>
+                <span><strong>◆ Gold</strong> Exfil</span>
+                <span><strong>● Purple</strong> Fixed location</span>
+                <span><strong>■ Blue</strong> Dynamic location</span>
+            </div>
         </div>
 
         <div class="panel log-panel">
@@ -173,9 +237,65 @@ else
 
         if (card.Type == CardType.Combat)
         {
-            return card.Damage > 0 ? $"DMG {card.Damage}" : $"ARM {card.ArmorValue}";
+            return card.Damage > 0 ? $"+{card.Damage} DMG" : "Combat";
         }
 
         return card.HealValue > 0 ? $"HEAL {card.HealValue}" : $"ARM {card.ArmorValue}";
+    }
+
+    private static string GetColumnLabel(int index)
+    {
+        return ((char)('A' + index)).ToString();
+    }
+
+    private static string FormatCoordinate(int x, int y)
+    {
+        return $"{GetColumnLabel(x)}{y + 1}";
+    }
+
+    private static string GetTrianglePoints(int centerX, int centerY)
+    {
+        var topX = centerX;
+        var topY = centerY - 7;
+        var leftX = centerX - 7;
+        var leftY = centerY + 6;
+        var rightX = centerX + 7;
+        var rightY = centerY + 6;
+
+        return $"{topX},{topY} {leftX},{leftY} {rightX},{rightY}";
+    }
+
+    private static string GetDiamondPoints(int centerX, int centerY)
+    {
+        var topX = centerX;
+        var topY = centerY - 7;
+        var rightX = centerX + 7;
+        var rightY = centerY;
+        var bottomX = centerX;
+        var bottomY = centerY + 7;
+        var leftX = centerX - 7;
+        var leftY = centerY;
+
+        return $"{topX},{topY} {rightX},{rightY} {bottomX},{bottomY} {leftX},{leftY}";
+    }
+
+    private static string GetMatchStatusLabel(GameSession session)
+    {
+        if (session.IsExtracted)
+        {
+            return "Extracted";
+        }
+
+        if (session.IsDefeated)
+        {
+            return "Defeated";
+        }
+
+        if (session.ActiveEnemy is not null)
+        {
+            return "In Combat";
+        }
+
+        return "Active";
     }
 }

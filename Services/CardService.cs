@@ -16,26 +16,47 @@ public class CardService : ICardService
 
     public Deck CreateDeck()
     {
-        var cards = new List<Card>
-        {
-            new() { Name = "Walk", Description = "Short movement burst.", Type = CardType.Movement, MovementValue = 2 },
-            new() { Name = "Sprint", Description = "Fast repositioning.", Type = CardType.Movement, MovementValue = 3 },
-            new() { Name = "Tactical Advance", Description = "Controlled advance across the zone.", Type = CardType.Movement, MovementValue = 4 },
-            new() { Name = "Off Road Vehicle", Description = "Long-range repositioning across rough terrain.", Type = CardType.Movement, MovementValue = 6 },
-            new() { Name = "Aim Shot", Description = "Reliable precision attack.", Type = CardType.Combat, Damage = 5 },
-            new() { Name = "Full Auto", Description = "Heavy combat output.", Type = CardType.Combat, Damage = 8 },
-            new() { Name = "Grenade", Description = "Area denial and burst damage.", Type = CardType.Combat, Damage = 6 },
-            new() { Name = "Armor Up", Description = "Improve defensive posture.", Type = CardType.Combat, ArmorValue = 6 },
-            new() { Name = "Medical Kit", Description = "Restore health during a push.", Type = CardType.Loot, HealValue = 15 },
-            new() { Name = "Armor Plate", Description = "Adds durable mitigation.", Type = CardType.Loot, ArmorValue = 8 },
-            new() { Name = "Walk", Description = "Short movement burst.", Type = CardType.Movement, MovementValue = 2 },
-            new() { Name = "Sprint", Description = "Fast repositioning.", Type = CardType.Movement, MovementValue = 3 },
-            new() { Name = "Aim Shot", Description = "Reliable precision attack.", Type = CardType.Combat, Damage = 5 },
-            new() { Name = "Armor Plate", Description = "Adds durable mitigation.", Type = CardType.Loot, ArmorValue = 8 }
-        };
+        var cards = new List<Card>();
+        AddCards(cards, "Walk", "Move 1 tile.", CardType.Movement, count: 10, movementValue: 1);
+        AddCards(cards, "Sprint", "Move 2 tiles.", CardType.Movement, count: 6, movementValue: 2);
+        AddCards(cards, "Advance", "Move 3 tiles.", CardType.Movement, count: 4, movementValue: 3);
+        AddCards(cards, "Vehicle", "Move 4 tiles.", CardType.Movement, count: 2, movementValue: 4);
+
+        AddCards(cards, "Aim Shot", "+2 combat damage.", CardType.Combat, count: 4, damage: 2);
+        AddCards(cards, "Full Auto", "+4 combat damage.", CardType.Combat, count: 4, damage: 4);
+        AddCards(cards, "Grenade", "+5 combat damage.", CardType.Combat, count: 2, damage: 5);
+
+        AddCards(cards, "Med Kit", "Restore 10 health.", CardType.Loot, count: 2, healValue: 10);
+        AddCards(cards, "Armor Plate", "Block 5 incoming damage.", CardType.Loot, count: 2, armorValue: 5);
 
         var shuffled = cards.OrderBy(_ => _random.Next()).ToList();
         return new Deck { Cards = shuffled };
+    }
+
+    private static void AddCards(
+        ICollection<Card> cards,
+        string name,
+        string description,
+        CardType type,
+        int count,
+        int movementValue = 0,
+        int damage = 0,
+        int healValue = 0,
+        int armorValue = 0)
+    {
+        for (var index = 0; index < count; index++)
+        {
+            cards.Add(new Card
+            {
+                Name = name,
+                Description = description,
+                Type = type,
+                MovementValue = movementValue,
+                Damage = damage,
+                HealValue = healValue,
+                ArmorValue = armorValue
+            });
+        }
     }
 
     public List<Card> DrawOpeningHand(Deck deck, int count)

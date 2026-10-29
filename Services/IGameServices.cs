@@ -23,6 +23,7 @@ public interface IGameStateService
 public interface IMapService
 {
     GameMap GenerateMap();
+    List<POI> GenerateFixedPOIs(GameMap map);
     List<InfilPoint> GenerateInfilPoints(GameMap map);
     List<ExfilPoint> GenerateExfilPoints(GameMap map);
     List<POI> GenerateDynamicPOIs(GameMap map, List<InfilPoint>? infilPoints = null, List<ExfilPoint>? exfilPoints = null);

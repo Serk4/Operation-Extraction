@@ -160,6 +160,8 @@ h1 {
     margin: 0;
     padding: 0;
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.6rem;
     justify-content: space-between;
     font-size: 0.75rem;
     color: #cbd5e1;
@@ -168,6 +170,22 @@ h1 {
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.hero-match-card {
+    gap: 0.7rem;
+}
+
+.hero-match-meta {
+    color: #cbd5e1;
+    font-size: 0.82rem;
+    margin-bottom: 0.65rem;
+}
+
+.hero-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.6rem;
 }
 
@@ -196,6 +214,7 @@ h1 {
 
 .route-summary {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
@@ -214,6 +233,56 @@ h1 {
 
 .map-tile {
     cursor: pointer;
+}
+
+.indexed-map-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.indexed-map-body {
+    display: grid;
+    grid-template-columns: 1.3rem minmax(0, 1fr);
+    gap: 0.35rem;
+    align-items: start;
+}
+
+.map-axis-x {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    margin-left: 1.65rem;
+    font-size: 0.68rem;
+    color: #94a3b8;
+    text-align: center;
+    font-weight: 700;
+}
+
+.map-axis-y {
+    display: grid;
+    grid-template-rows: repeat(10, 34px);
+    font-size: 0.68rem;
+    color: #94a3b8;
+    text-align: center;
+    font-weight: 700;
+}
+
+.map-legend {
+    margin-top: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem 0.6rem;
+    color: #cbd5e1;
+    font-size: 0.73rem;
+}
+
+.hero-card-footer {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    color: #cbd5e1;
+    font-size: 0.76rem;
 }
 
 .event-log {

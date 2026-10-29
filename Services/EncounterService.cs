@@ -7,45 +7,63 @@ using Operation_Extraction.Models;
 /// </summary>
 public class EncounterService : IEncounterService
 {
+    private readonly Random _random = new();
+
     public Encounter? RollEncounter(GameSession session, int x, int y)
     {
-        var seed = (session.TurnNumber * 97 + x * 13 + y * 7) % 100;
-
-        if (seed < 18)
+        var roll = _random.Next(1, 101);
+        if (roll <= 40)
         {
+            return null;
+        }
+
+        if (roll <= 70)
+        {
+            var enemyTierRoll = _random.Next(1, 101);
+            var enemy = enemyTierRoll switch
+            {
+                <= 60 => new Enemy { Name = "Tier 1 Patrol", Health = 10, Damage = 2 },
+                <= 92 => new Enemy { Name = "Tier 2 Mercenary", Health = 20, Damage = 4 },
+                _ => new Enemy { Name = "Boss Squad", Health = 50, Damage = 8, IsBoss = true }
+            };
+
             return new Encounter
             {
-                Title = "Hostile patrol",
-                Description = "An enemy team has cut off the path.",
+                Title = "Enemy encounter",
+                Description = "Hostiles engage your position.",
                 Type = EncounterType.Enemy,
-                Enemy = new Enemy { Name = "Patrol Unit", Health = 18, Damage = 7 },
-                RiskLevel = 2
+                Enemy = enemy,
+                RiskLevel = enemy.IsBoss ? 3 : 2
             };
         }
 
-        if (seed < 28)
+        if (roll <= 90)
         {
+            var lootRoll = _random.Next(1, 101);
+            var loot = lootRoll switch
+            {
+                <= 35 => new LootItem { Name = "Cash Bundle", Description = "Secure funds and intel notes.", Value = 10 },
+                <= 65 => new LootItem { Name = "Medical Supplies", Description = "Recover 10 health.", Value = 10 },
+                <= 90 => new LootItem { Name = "Armor Supplies", Description = "Reinforce armor by 5.", Value = 10 },
+                _ => new LootItem { Name = "Weapon Upgrade", Description = "Increase gun strength by 1.", Value = 20 }
+            };
+
             return new Encounter
             {
-                Title = "Supply cache",
-                Description = "A forgotten stash is lying nearby.",
+                Title = "Loot discovery",
+                Description = $"Found {loot.Name}.",
                 Type = EncounterType.SupplyCache,
-                Loot = new LootItem { Name = "Med Pack", Description = "Combat supply bundle.", Value = 10 },
+                Loot = loot,
                 RiskLevel = 1
             };
         }
 
-        if (seed < 35)
+        return new Encounter
         {
-            return new Encounter
-            {
-                Title = "Extraction risk",
-                Description = "The route is under heavy observation.",
-                Type = EncounterType.ExtractionRisk,
-                RiskLevel = 2
-            };
-        }
-
-        return null;
+            Title = "Special event",
+            Description = "Field intel improved your weapon handling (+1 Gun Strength).",
+            Type = EncounterType.ExtractionRisk,
+            RiskLevel = 2
+        };
     }
 }
