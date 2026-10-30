@@ -2,7 +2,6 @@
 @using Operation_Extraction.Models
 @inject IGameStateService GameState
 @inject NavigationManager Navigation
-@rendermode InteractiveServer
 
 <PageTitle>Operation Extraction</PageTitle>
 
@@ -262,7 +261,7 @@ else
 @code {
     private void BackToRoster()
     {
-        Navigation.NavigateTo("/heroes");
+        Navigation.NavigateTo("heroes");
     }
 
     private void SelectTile(int x, int y)
@@ -282,7 +281,7 @@ else
 
     private void ReturnToMainMenu()
     {
-        Navigation.NavigateTo("/");
+        Navigation.NavigateTo("");
     }
 
     private static string GetTileColor(TerrainType terrain) => terrain switch

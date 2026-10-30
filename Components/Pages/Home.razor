@@ -1,6 +1,5 @@
 @page "/"
 @inject NavigationManager Navigation
-@rendermode InteractiveServer
 
 <PageTitle>Operation Extraction</PageTitle>
 
@@ -18,11 +17,11 @@
 @code {
     private void StartMatch()
     {
-        Navigation.NavigateTo("/heroes");
+        Navigation.NavigateTo("heroes");
     }
 
     private void ViewHeroes()
     {
-        Navigation.NavigateTo("/heroes");
+        Navigation.NavigateTo("heroes");
     }
 }

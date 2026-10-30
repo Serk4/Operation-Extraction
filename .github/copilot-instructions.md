@@ -2,7 +2,7 @@
 
 ## Build, test, and lint commands
 
-This repo is a single ASP.NET Core 9 Blazor app. Use the standard .NET workflow from the repository root:
+This repo is a single .NET 9 Blazor WebAssembly app. Use the standard .NET workflow from the repository root:
 
 - Restore dependencies: `dotnet restore`
 - Build the app: `dotnet build`
@@ -14,9 +14,9 @@ There is no dedicated lint script or custom lint configuration in this repositor
 
 ## High-level architecture
 
-This is a mobile-first single-player extraction game built with ASP.NET Core 9 and Blazor Server.
+This is a mobile-first single-player extraction game built with .NET 9 and Blazor WebAssembly.
 
-- `Program.cs` boots the app and configures Razor components and dependency injection.
+- `Program.cs` boots the WebAssembly host and configures dependency injection.
 - `Services/ServiceRegistration.cs` wires the game services into the container.
 - `Models/GameModels.cs` is the domain layer: heroes, cards, map tiles, POIs, and the in-memory `GameSession` state.
 - `GameEngine/GameplayEngine.cs` centralizes movement calculations and reusable game rules (for example, distance and required movement-card logic).

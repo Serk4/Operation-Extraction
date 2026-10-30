@@ -2,7 +2,6 @@
 @using Operation_Extraction.Models
 @inject IGameStateService GameState
 @inject NavigationManager Navigation
-@rendermode InteractiveServer
 
 <PageTitle>Select Hero</PageTitle>
 
@@ -46,6 +45,6 @@
     private void SelectHero(Hero hero)
     {
         GameState.StartNewMatch(hero);
-        Navigation.NavigateTo("/game");
+        Navigation.NavigateTo("game");
     }
 }
