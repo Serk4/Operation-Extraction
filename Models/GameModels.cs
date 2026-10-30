@@ -12,7 +12,7 @@ public class Hero
     public string Specialty { get; set; } = string.Empty;
     public string AccentColor { get; set; } = "#5eead4";
     public int MaxHealth { get; set; } = 100;
-    public int Armor { get; set; } = 0;
+    public int Armor { get; set; }
     public int Movement { get; set; } = 3;
     public int GunStrength { get; set; } = 5;
 }
@@ -28,30 +28,45 @@ public class Player
     public int Health { get; set; }
     public int Armor { get; set; }
     public int GunStrength { get; set; }
-    public List<LootItem> Inventory { get; set; } = new();
 }
 
 /// <summary>
-/// Represents a single extractable combat or utility card in the current hand.
+/// Represents one movement card available to the player.
 /// </summary>
 public class Card
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public CardType Type { get; set; }
     public int MovementValue { get; set; }
-    public int Damage { get; set; }
-    public int HealValue { get; set; }
-    public int ArmorValue { get; set; }
 }
 
 /// <summary>
-/// A stack of cards used for turn resolution and draw logic.
+/// A stack of movement cards used for draw and discard flow.
 /// </summary>
 public class Deck
 {
     public List<Card> Cards { get; set; } = new();
+}
+
+/// <summary>
+/// Represents one encounter deck card.
+/// </summary>
+public class EncounterDeckCard
+{
+    public EncounterCardType Type { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Represents one loot deck card.
+/// </summary>
+public class LootDeckCard
+{
+    public LootType Type { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -61,7 +76,8 @@ public class MapTile
 {
     public int X { get; set; }
     public int Y { get; set; }
-    public TileType Type { get; set; }
+    public TerrainType Terrain { get; set; }
+    public TileType TileType { get; set; } = TileType.Empty;
     public bool IsBlocked { get; set; }
     public POI? POI { get; set; }
 }
@@ -127,26 +143,59 @@ public class Enemy
 }
 
 /// <summary>
-/// Encapsulates the result of a tile encounter event.
+/// Summary of a combat resolution against one enemy.
 /// </summary>
-public class Encounter
+public class CombatResult
 {
-    public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public EncounterType Type { get; set; }
-    public Enemy? Enemy { get; set; }
-    public LootItem? Loot { get; set; }
-    public int RiskLevel { get; set; }
+    public int DamageDealt { get; set; }
+    public int DamageTaken { get; set; }
+    public int ArmorAbsorbed { get; set; }
+    public bool Victory { get; set; }
+    public bool BossDefeated { get; set; }
 }
 
 /// <summary>
-/// A loot item that can be picked up during the match.
+/// Describes the full outcome of resolving a newly-entered tile.
 /// </summary>
-public class LootItem
+public class TileResolutionResult
 {
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public int Value { get; set; }
+    public TileType TileType { get; set; }
+    public bool EncounterTriggered { get; set; }
+    public string? EncounterResult { get; set; }
+    public LootDeckCard? LootAwarded { get; set; }
+    public bool PoiTriggered { get; set; }
+    public List<string> EventLogEntries { get; set; } = new();
+    public bool MatchEnded { get; set; }
+}
+
+/// <summary>
+/// Tracks resource totals collected during a match.
+/// </summary>
+public class ResourceLedger
+{
+    public int Cash { get; set; }
+    public int Materials { get; set; }
+    public int Intel { get; set; }
+    public int ClassifiedIntel { get; set; }
+    public int MedicalSupplies { get; set; }
+    public int ArmorSupplies { get; set; }
+    public int WeaponUpgrades { get; set; }
+}
+
+/// <summary>
+/// Tracks outcome statistics for the active match.
+/// </summary>
+public class MatchStatistics
+{
+    public int StartingHealth { get; set; }
+    public int TurnsPlayed { get; set; }
+    public int TilesTraveled { get; set; }
+    public int PoisVisited { get; set; }
+    public int DynamicPoisVisited { get; set; }
+    public int EnemiesDefeated { get; set; }
+    public int BossesDefeated { get; set; }
+    public int DamageDealt { get; set; }
+    public int DamageTaken { get; set; }
 }
 
 /// <summary>
@@ -157,34 +206,36 @@ public class GameSession
     public Hero SelectedHero { get; set; } = new();
     public GameMap Map { get; set; } = new();
     public Player Player { get; set; } = new();
+    public GamePhase Phase { get; set; } = GamePhase.Lobby;
+
+    public Deck MovementDeck { get; set; } = new();
+    public List<Card> MovementDiscard { get; set; } = new();
     public List<Card> CurrentHand { get; set; } = new();
-    public Deck Deck { get; set; } = new();
-    public List<Card> DiscardPile { get; set; } = new();
+    public List<EncounterDeckCard> EncounterDeck { get; set; } = new();
+    public List<EncounterDeckCard> EncounterDiscard { get; set; } = new();
+    public List<LootDeckCard> LootDeck { get; set; } = new();
+    public List<LootDeckCard> LootDiscard { get; set; } = new();
+
     public List<InfilPoint> InfilPoints { get; set; } = new();
     public List<ExfilPoint> ExfilPoints { get; set; } = new();
     public List<POI> FixedPOIs { get; set; } = new();
     public List<POI> DynamicPOIs { get; set; } = new();
     public ExfilPoint? CurrentTargetExfil { get; set; }
-    public List<LootItem> LootInventory { get; set; } = new();
+
+    public HashSet<string> VisitedPoiCoordinates { get; set; } = new();
+    public ResourceLedger Resources { get; set; } = new();
+    public MatchStatistics Stats { get; set; } = new();
     public List<string> EventLog { get; set; } = new();
     public MapTile? SelectedDestination { get; set; }
-    public int TurnNumber { get; set; } = 1;
     public int PendingMovement { get; set; }
-    public Enemy? ActiveEnemy { get; set; }
-    public string LastMessage { get; set; } = string.Empty;
+    public int TurnNumber { get; set; } = 1;
     public bool IsExtracted { get; set; }
     public bool IsDefeated { get; set; }
+    public string LastMessage { get; set; } = string.Empty;
     public bool IsStarted { get; set; }
 }
 
-public enum CardType
-{
-    Movement,
-    Combat,
-    Loot
-}
-
-public enum TileType
+public enum TerrainType
 {
     Open,
     Forest,
@@ -193,10 +244,44 @@ public enum TileType
     Water
 }
 
-public enum EncounterType
+public enum TileType
 {
-    None,
-    Enemy,
+    Empty,
+    POI,
+    DynamicPOI,
+    Infil,
+    Exfil
+}
+
+public enum EncounterCardType
+{
+    Nothing,
+    EnemyPatrol,
+    MilitiaSquad,
+    MercenarySquad,
     SupplyCache,
-    ExtractionRisk
+    SafeHouse,
+    BossEncounter
+}
+
+public enum LootType
+{
+    Cash,
+    Materials,
+    MedicalSupplies,
+    ArmorSupplies,
+    WeaponUpgrade,
+    Intel,
+    ClassifiedIntel
+}
+
+public enum GamePhase
+{
+    Lobby,
+    HeroSelection,
+    Infil,
+    Exploration,
+    Combat,
+    Extraction,
+    MatchComplete
 }

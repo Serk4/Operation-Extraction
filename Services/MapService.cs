@@ -25,19 +25,20 @@ public class MapService : IMapService
                 var roll = _random.Next(1, 101);
                 var tileType = roll switch
                 {
-                    <= 45 => TileType.Open,
-                    <= 70 => TileType.Forest,
-                    <= 85 => TileType.Ruins,
-                    <= 96 => TileType.Street,
-                    _ => TileType.Water
+                    <= 45 => TerrainType.Open,
+                    <= 70 => TerrainType.Forest,
+                    <= 85 => TerrainType.Ruins,
+                    <= 96 => TerrainType.Street,
+                    _ => TerrainType.Water
                 };
 
                 map.Tiles[x, y] = new MapTile
                 {
                     X = x,
                     Y = y,
-                    Type = tileType,
-                    IsBlocked = tileType == TileType.Water
+                    Terrain = tileType,
+                    TileType = TileType.Empty,
+                    IsBlocked = tileType == TerrainType.Water
                 };
             }
         }
@@ -72,6 +73,7 @@ public class MapService : IMapService
             };
 
             tile.POI = poi;
+            tile.TileType = TileType.POI;
             points.Add(poi);
         }
 
@@ -101,6 +103,7 @@ public class MapService : IMapService
             };
 
             map.Tiles[x, y].POI = point;
+            map.Tiles[x, y].TileType = TileType.Infil;
             points.Add(point);
         }
 
@@ -130,6 +133,7 @@ public class MapService : IMapService
             };
 
             map.Tiles[x, y].POI = point;
+            map.Tiles[x, y].TileType = TileType.Exfil;
             points.Add(point);
         }
 
@@ -168,6 +172,7 @@ public class MapService : IMapService
             };
 
             tile.POI = poi;
+            tile.TileType = TileType.DynamicPOI;
             points.Add(poi);
         }
 

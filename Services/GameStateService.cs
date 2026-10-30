@@ -5,26 +5,37 @@ using Operation_Extraction.GameEngine;
 using Operation_Extraction.Models;
 
 /// <summary>
-/// Central state service for heroes, session lifecycle, and memory-backed gameplay.
+/// Central state service for hero lifecycle and in-memory match orchestration.
 /// </summary>
 public class GameStateService : IGameStateService
 {
-    private readonly MapService _mapService;
-    private readonly CardService _cardService;
-    private readonly EncounterService _encounterService;
-    private readonly CombatService _combatService;
+    private readonly IMapService _mapService;
+    private readonly IMovementDeckService _movementDeckService;
+    private readonly IEncounterDeckService _encounterDeckService;
+    private readonly ILootDeckService _lootDeckService;
+    private readonly ITileResolutionService _tileResolutionService;
 
-    public GameStateService(MapService mapService, CardService cardService, EncounterService encounterService, CombatService combatService)
+    public GameStateService(
+        IMapService mapService,
+        IMovementDeckService movementDeckService,
+        IEncounterDeckService encounterDeckService,
+        ILootDeckService lootDeckService,
+        ITileResolutionService tileResolutionService)
     {
         _mapService = mapService;
-        _cardService = cardService;
-        _encounterService = encounterService;
-        _combatService = combatService;
+        _movementDeckService = movementDeckService;
+        _encounterDeckService = encounterDeckService;
+        _lootDeckService = lootDeckService;
+        _tileResolutionService = tileResolutionService;
     }
 
+    /// <inheritdoc />
     public List<Hero> HeroRoster { get; private set; } = new();
+
+    /// <inheritdoc />
     public GameSession? Session { get; private set; }
 
+    /// <inheritdoc />
     public void InitializeHeroes()
     {
         if (HeroRoster.Count == 0)
@@ -33,6 +44,7 @@ public class GameStateService : IGameStateService
         }
     }
 
+    /// <inheritdoc />
     public void StartNewMatch(Hero hero)
     {
         var map = _mapService.GenerateMap();
@@ -40,9 +52,8 @@ public class GameStateService : IGameStateService
         var infilPoints = _mapService.GenerateInfilPoints(map);
         var exfilPoints = _mapService.GenerateExfilPoints(map);
         var dynamicPois = _mapService.GenerateDynamicPOIs(map, infilPoints, exfilPoints);
-        var spawnIndex = Random.Shared.Next(0, infilPoints.Count);
-        var spawnPoint = infilPoints[spawnIndex];
 
+        var spawnPoint = infilPoints[Random.Shared.Next(0, infilPoints.Count)];
         var player = new Player
         {
             Hero = hero,
@@ -50,68 +61,101 @@ public class GameStateService : IGameStateService
             Y = spawnPoint.Y,
             Health = hero.MaxHealth,
             Armor = hero.Armor,
-            GunStrength = hero.GunStrength,
-            Inventory = new List<LootItem>()
+            GunStrength = hero.GunStrength
         };
-
-        var deck = _cardService.CreateDeck();
-        var openingHand = _cardService.DrawOpeningHand(deck, 5);
 
         var session = new GameSession
         {
             SelectedHero = hero,
             Map = map,
             Player = player,
-            Deck = deck,
-            CurrentHand = openingHand,
+            Phase = GamePhase.Infil,
+            MovementDeck = _movementDeckService.CreateMovementDeck(),
+            EncounterDeck = _encounterDeckService.CreateEncounterDeck(),
+            LootDeck = _lootDeckService.CreateLootDeck(),
             InfilPoints = infilPoints,
             ExfilPoints = exfilPoints,
             FixedPOIs = fixedPois,
             DynamicPOIs = dynamicPois,
-            CurrentTargetExfil = exfilPoints.FirstOrDefault(),
-            LootInventory = new List<LootItem>(),
-            EventLog = new List<string>(),
+            CurrentTargetExfil = null,
             SelectedDestination = null,
             PendingMovement = 0,
+            TurnNumber = 1,
             IsStarted = true,
-            LastMessage = $"{hero.Name} has entered the map."
+            LastMessage = $"{hero.Name} deployed at {ToCoordinate(spawnPoint.X, spawnPoint.Y)}.",
+            Stats = new MatchStatistics
+            {
+                StartingHealth = hero.MaxHealth,
+                TurnsPlayed = 0
+            }
         };
 
-        session.EventLog.Add($"{hero.Name} deployed to {spawnPoint.Name}.");
-        session.EventLog.Add($"Current extraction route is {session.CurrentTargetExfil?.Name ?? "unknown"}.");
+        session.EventLog.Add(session.LastMessage);
+        session.EventLog.Add("Select an Exfil tile to set your extraction objective.");
         Session = session;
     }
 
-    public void SelectDestination(int x, int y)
+    /// <inheritdoc />
+    public void RestartMatch()
     {
         if (Session is null)
         {
             return;
         }
 
-        var tile = Session.Map.GetTile(x, y);
-        if (tile.POI is ExfilPoint exfilPoint)
+        StartNewMatch(Session.SelectedHero);
+    }
+
+    /// <inheritdoc />
+    public void SelectDestination(int x, int y)
+    {
+        if (Session is null || Session.Phase == GamePhase.MatchComplete)
         {
+            return;
+        }
+
+        var tile = Session.Map.GetTile(x, y);
+        if (tile.IsBlocked)
+        {
+            Session.LastMessage = "Blocked tile selected. Choose a different destination.";
+            Session.EventLog.Add(Session.LastMessage);
+            return;
+        }
+
+        if (Session.Phase == GamePhase.Infil)
+        {
+            if (tile.POI is not ExfilPoint exfilPoint)
+            {
+                Session.LastMessage = "Select one of the Exfil markers to begin the mission.";
+                Session.EventLog.Add(Session.LastMessage);
+                return;
+            }
+
             Session.CurrentTargetExfil = exfilPoint;
-            Session.EventLog.Add($"Extraction objective updated to {exfilPoint.Name}.");
+            Session.Phase = GamePhase.Exploration;
+            Session.CurrentHand = _movementDeckService.DrawCards(Session, 5);
+            Session.EventLog.Add($"Exfil objective selected: {exfilPoint.Name} ({ToCoordinate(x, y)}).");
+            Session.EventLog.Add("Opening hand drawn (5 movement cards).");
+            return;
+        }
+
+        if (Session.Phase != GamePhase.Exploration)
+        {
+            return;
         }
 
         Session.SelectedDestination = tile;
         Session.PendingMovement = 0;
         var distance = GameplayEngine.CalculateDistance(Session.Player.X, Session.Player.Y, x, y);
         var requiredCards = GameplayEngine.CalculateRequiredMovementCards(distance);
-        Session.LastMessage = $"Destination selected: {distance} tiles away. Requires {requiredCards} movement cards.";
+        Session.LastMessage = $"Destination selected: {ToCoordinate(x, y)} ({distance} tiles, ~{requiredCards} cards).";
         Session.EventLog.Add(Session.LastMessage);
     }
 
+    /// <inheritdoc />
     public void PlayCard(Card card)
     {
-        if (Session is null)
-        {
-            return;
-        }
-
-        if (Session.IsExtracted || Session.IsDefeated)
+        if (Session is null || Session.Phase != GamePhase.Exploration || Session.IsExtracted || Session.IsDefeated)
         {
             return;
         }
@@ -121,43 +165,41 @@ public class GameStateService : IGameStateService
             return;
         }
 
-        if (Session.ActiveEnemy is not null)
+        if (Session.SelectedDestination is null)
         {
-            if (card.Type == CardType.Combat)
-            {
-                ResolveCombatCard(Session, card);
-                return;
-            }
-
-            if (card.Type == CardType.Loot)
-            {
-                ApplyUtilityCard(Session, card);
-                EndTurn(Session);
-                return;
-            }
-
-            Session.LastMessage = "Cannot move while enemies are active. Use a combat card or utility card.";
+            Session.LastMessage = "Select a destination tile before playing movement cards.";
             Session.EventLog.Add(Session.LastMessage);
             return;
         }
 
-        if (card.Type == CardType.Movement)
-        {
-            ResolveMovementCard(Session, card);
-            return;
-        }
+        var distance = GameplayEngine.CalculateDistance(
+            Session.Player.X,
+            Session.Player.Y,
+            Session.SelectedDestination.X,
+            Session.SelectedDestination.Y);
 
-        if (card.Type == CardType.Combat)
+        if (distance <= 0)
         {
-            Session.LastMessage = $"{card.Name} cannot be used without an active enemy encounter.";
+            Session.LastMessage = "Already on selected tile.";
             Session.EventLog.Add(Session.LastMessage);
             return;
         }
 
-        ApplyUtilityCard(Session, card);
-        EndTurn(Session);
+        Session.CurrentHand.Remove(card);
+        _movementDeckService.DiscardCard(Session, card);
+        Session.PendingMovement += card.MovementValue;
+
+        if (Session.PendingMovement < distance)
+        {
+            Session.LastMessage = $"{card.Name} played ({Session.PendingMovement}/{distance} movement).";
+            Session.EventLog.Add(Session.LastMessage);
+            return;
+        }
+
+        ResolveMovement(Session, distance);
     }
 
+    /// <inheritdoc />
     public int GetDistanceToSelectedTarget()
     {
         if (Session is null || Session.SelectedDestination is null)
@@ -165,240 +207,124 @@ public class GameStateService : IGameStateService
             return 0;
         }
 
-        return GameplayEngine.CalculateDistance(Session.Player.X, Session.Player.Y, Session.SelectedDestination.X, Session.SelectedDestination.Y);
+        return GameplayEngine.CalculateDistance(
+            Session.Player.X,
+            Session.Player.Y,
+            Session.SelectedDestination.X,
+            Session.SelectedDestination.Y);
     }
 
+    /// <inheritdoc />
     public int GetRequiredCardsForSelectedTarget()
     {
         return GameplayEngine.CalculateRequiredMovementCards(GetDistanceToSelectedTarget());
     }
 
-    private void ResolveMovementCard(GameSession session, Card card)
+    /// <inheritdoc />
+    public int CalculateFinalScore()
     {
-        if (session.SelectedDestination is null)
+        if (Session is null)
         {
-            session.LastMessage = "Select a destination tile before playing movement cards.";
-            session.EventLog.Add(session.LastMessage);
+            return 0;
+        }
+
+        var extractionBonus = Session.IsExtracted ? 100 : 0;
+        var enemyPoints = Session.Stats.EnemiesDefeated * 5;
+        var bossPoints = Session.Stats.BossesDefeated * 50;
+        var cashPoints = Session.Resources.Cash;
+        var materialPoints = Session.Resources.Materials * 5;
+        var intelPoints = (Session.Resources.Intel + Session.Resources.ClassifiedIntel) * 25;
+        var upgradePoints = Session.Resources.WeaponUpgrades * 10;
+
+        return extractionBonus + enemyPoints + bossPoints + cashPoints + materialPoints + intelPoints + upgradePoints;
+    }
+
+    /// <inheritdoc />
+    public string GetFinalRating()
+    {
+        var score = CalculateFinalScore();
+        return score switch
+        {
+            <= 99 => "Poor",
+            <= 199 => "Operator",
+            <= 299 => "Veteran",
+            <= 399 => "Elite",
+            _ => "Legend"
+        };
+    }
+
+    private void ResolveMovement(GameSession session, int traveledDistance)
+    {
+        var destination = session.SelectedDestination;
+        if (destination is null)
+        {
             return;
         }
 
-        if (session.SelectedDestination.IsBlocked)
-        {
-            session.LastMessage = "Destination is blocked. Select another tile.";
-            session.EventLog.Add(session.LastMessage);
-            return;
-        }
-
-        var distance = GameplayEngine.CalculateDistance(
-            session.Player.X,
-            session.Player.Y,
-            session.SelectedDestination.X,
-            session.SelectedDestination.Y);
-        if (distance <= 0)
-        {
-            session.LastMessage = "Already on the selected tile.";
-            session.EventLog.Add(session.LastMessage);
-            return;
-        }
-
-        session.CurrentHand.Remove(card);
-        session.DiscardPile.Add(card);
-        session.PendingMovement += card.MovementValue;
-
-        if (session.PendingMovement < distance)
-        {
-            session.LastMessage = $"{card.Name} played. Movement progress {session.PendingMovement}/{distance}.";
-            session.EventLog.Add(session.LastMessage);
-            return;
-        }
-
-        session.Player.X = session.SelectedDestination.X;
-        session.Player.Y = session.SelectedDestination.Y;
+        session.Player.X = destination.X;
+        session.Player.Y = destination.Y;
         session.PendingMovement = 0;
         session.SelectedDestination = null;
-        session.LastMessage = $"{card.Name} completed movement to ({session.Player.X}, {session.Player.Y}).";
-        session.EventLog.Add(session.LastMessage);
+        session.Stats.TilesTraveled += traveledDistance;
+        session.EventLog.Add($"Movement resolved to {ToCoordinate(destination.X, destination.Y)}.");
 
-        ResolveTileArrival(session);
-        EvaluateMatchOutcome(session);
-        EndTurn(session);
-    }
-
-    private void ResolveTileArrival(GameSession session)
-    {
-        var tile = session.Map.GetTile(session.Player.X, session.Player.Y);
-        if (tile.POI is not null)
+        var tileResult = _tileResolutionService.ResolveTile(session, destination);
+        foreach (var entry in tileResult.EventLogEntries)
         {
-            session.EventLog.Add($"Entered location: {tile.POI.Name}.");
+            session.EventLog.Add(entry);
         }
 
-        var encounter = _encounterService.RollEncounter(session, session.Player.X, session.Player.Y);
-        if (encounter is null)
+        if (session.Player.Health <= 0)
         {
-            session.EventLog.Add("Encounter roll: clear.");
+            session.IsDefeated = true;
+            session.Phase = GamePhase.MatchComplete;
+            session.LastMessage = "Mission failed. Operator eliminated.";
+            session.EventLog.Add(session.LastMessage);
             return;
         }
 
-        session.EventLog.Add($"Encounter: {encounter.Title} - {encounter.Description}");
-        switch (encounter.Type)
+        if (session.CurrentTargetExfil is not null &&
+            session.Player.X == session.CurrentTargetExfil.X &&
+            session.Player.Y == session.CurrentTargetExfil.Y)
         {
-            case EncounterType.Enemy when encounter.Enemy is not null:
-                session.ActiveEnemy = encounter.Enemy;
-                session.EventLog.Add($"{encounter.Enemy.Name} engaged. Health {encounter.Enemy.Health}, Damage {encounter.Enemy.Damage}.");
-                break;
-            case EncounterType.SupplyCache when encounter.Loot is not null:
-                ApplyLootEvent(session, encounter.Loot);
-                break;
-            case EncounterType.ExtractionRisk:
-                session.Player.GunStrength += 1;
-                session.EventLog.Add("Special event: Gun Strength increased by 1.");
-                break;
-        }
-    }
-
-    private void ApplyLootEvent(GameSession session, LootItem loot)
-    {
-        session.LootInventory.Add(loot);
-
-        if (loot.Name == "Medical Supplies")
-        {
-            session.Player.Health = Math.Min(session.SelectedHero.MaxHealth, session.Player.Health + 10);
-            session.EventLog.Add("Loot effect: restored 10 health.");
+            session.IsExtracted = true;
+            session.Phase = GamePhase.MatchComplete;
+            session.LastMessage = $"Extraction successful at {session.CurrentTargetExfil.Name}.";
+            session.EventLog.Add(session.LastMessage);
             return;
         }
 
-        if (loot.Name == "Armor Supplies")
-        {
-            session.Player.Armor += 5;
-            session.EventLog.Add("Loot effect: gained 5 armor.");
-            return;
-        }
-
-        if (loot.Name == "Weapon Upgrade")
-        {
-            session.Player.GunStrength += 1;
-            session.EventLog.Add("Loot effect: Gun Strength increased by 1.");
-            return;
-        }
-
-        session.EventLog.Add($"Loot secured: {loot.Name}.");
-    }
-
-    private void ApplyUtilityCard(GameSession session, Card card)
-    {
-        if (card.HealValue > 0)
-        {
-            session.Player.Health = Math.Min(session.SelectedHero.MaxHealth, session.Player.Health + card.HealValue);
-        }
-
-        if (card.ArmorValue > 0)
-        {
-            session.Player.Armor += card.ArmorValue;
-        }
-
-        session.CurrentHand.Remove(card);
-        session.DiscardPile.Add(card);
-        session.LastMessage = $"{card.Name} used for recovery and support.";
-        session.EventLog.Add(session.LastMessage);
-    }
-
-    private void ResolveCombatCard(GameSession session, Card card)
-    {
-        if (session.ActiveEnemy is null)
-        {
-            return;
-        }
-
-        session.CurrentHand.Remove(card);
-        session.DiscardPile.Add(card);
-
-        var result = _combatService.ResolveCombat(session.Player, session.ActiveEnemy, card);
-        session.EventLog.Add(
-            $"Combat: {card.Name} dealt {result.DamageDealt}. Enemy health now {result.EnemyHealthRemaining}.");
-
-        if (result.Victory)
-        {
-            session.EventLog.Add($"Enemy neutralized: {session.ActiveEnemy.Name}.");
-            session.ActiveEnemy = null;
-        }
-        else
-        {
-            session.EventLog.Add(
-                $"Enemy retaliation: {result.HealthLost} health lost, {result.ArmorAbsorbed} armor blocked.");
-        }
-
-        EvaluateMatchOutcome(session);
         EndTurn(session);
     }
 
     private void EndTurn(GameSession session)
     {
-        if (session.IsExtracted || session.IsDefeated)
+        if (session.Phase == GamePhase.MatchComplete)
         {
             return;
         }
 
+        session.Stats.TurnsPlayed++;
         session.TurnNumber++;
-        DrawCards(session, 1);
+        session.CurrentHand.AddRange(_movementDeckService.DrawCards(session, 1));
         TrimHandToLimit(session, 7);
+        session.LastMessage = $"Turn {session.TurnNumber} ready.";
     }
 
     private static void TrimHandToLimit(GameSession session, int handLimit)
     {
         while (session.CurrentHand.Count > handLimit)
         {
-            var discarded = session.CurrentHand[^1];
+            var removedCard = session.CurrentHand[^1];
             session.CurrentHand.RemoveAt(session.CurrentHand.Count - 1);
-            session.DiscardPile.Add(discarded);
-            session.EventLog.Add($"Hand limit reached. Discarded {discarded.Name}.");
+            session.MovementDiscard.Add(removedCard);
+            session.EventLog.Add($"Hand limit reached. Discarded {removedCard.Name}.");
         }
     }
 
-    private static void EvaluateMatchOutcome(GameSession session)
+    private static string ToCoordinate(int x, int y)
     {
-        if (session.Player.Health <= 0)
-        {
-            session.IsDefeated = true;
-            session.LastMessage = "Mission failed. Operator eliminated.";
-            session.EventLog.Add(session.LastMessage);
-            return;
-        }
-
-        if (session.CurrentTargetExfil is null)
-        {
-            return;
-        }
-
-        if (session.Player.X == session.CurrentTargetExfil.X &&
-            session.Player.Y == session.CurrentTargetExfil.Y &&
-            session.Player.Health > 0)
-        {
-            session.IsExtracted = true;
-            session.LastMessage = $"Extraction successful at {session.CurrentTargetExfil.Name}.";
-            session.EventLog.Add(session.LastMessage);
-        }
-    }
-
-    private static void DrawCards(GameSession session, int count)
-    {
-        for (var drawIndex = 0; drawIndex < count; drawIndex++)
-        {
-            if (session.Deck.Cards.Count == 0)
-            {
-                if (session.DiscardPile.Count == 0)
-                {
-                    return;
-                }
-
-                var reshuffled = session.DiscardPile.OrderBy(_ => Random.Shared.Next()).ToList();
-                session.Deck.Cards = reshuffled;
-                session.DiscardPile = new List<Card>();
-                session.EventLog.Add("Deck exhausted. Reshuffled discard pile.");
-            }
-
-            var nextCard = session.Deck.Cards[0];
-            session.Deck.Cards.RemoveAt(0);
-            session.CurrentHand.Add(nextCard);
-        }
+        var column = (char)('A' + x);
+        return $"{column}{y + 1}";
     }
 }

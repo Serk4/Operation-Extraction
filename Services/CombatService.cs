@@ -3,42 +3,37 @@ namespace Operation_Extraction.Services;
 using Operation_Extraction.Models;
 
 /// <summary>
-/// Applies deterministic combat outcomes for the MVP session.
+/// Applies deterministic combat outcomes for a full enemy engagement.
 /// </summary>
 public class CombatService : ICombatService
 {
-    public CombatResult ResolveCombat(Player player, Enemy enemy, Card card)
+    /// <inheritdoc />
+    public CombatResult ResolveCombat(Player player, Enemy enemy)
     {
-        var bonusDamage = Math.Max(0, card.Damage);
-        var totalDamage = player.GunStrength + bonusDamage;
-        enemy.Health = Math.Max(0, enemy.Health - totalDamage);
+        var result = new CombatResult();
 
-        var effectiveArmor = 0;
-        var healthLoss = 0;
-        if (enemy.Health > 0)
+        while (enemy.Health > 0 && player.Health > 0)
         {
-            effectiveArmor = Math.Min(player.Armor, enemy.Damage);
-            healthLoss = Math.Max(0, enemy.Damage - effectiveArmor);
-            player.Armor -= effectiveArmor;
+            var dealt = Math.Max(1, player.GunStrength);
+            enemy.Health = Math.Max(0, enemy.Health - dealt);
+            result.DamageDealt += dealt;
+
+            if (enemy.Health <= 0)
+            {
+                result.Victory = true;
+                break;
+            }
+
+            var absorbed = Math.Min(player.Armor, enemy.Damage);
+            player.Armor -= absorbed;
+            var healthLoss = Math.Max(0, enemy.Damage - absorbed);
             player.Health = Math.Max(0, player.Health - healthLoss);
+
+            result.ArmorAbsorbed += absorbed;
+            result.DamageTaken += healthLoss;
         }
 
-        return new CombatResult
-        {
-            DamageDealt = totalDamage,
-            ArmorAbsorbed = effectiveArmor,
-            HealthLost = healthLoss,
-            EnemyHealthRemaining = enemy.Health,
-            Victory = enemy.Health <= 0
-        };
-    }
-
-    public class CombatResult
-    {
-        public int DamageDealt { get; set; }
-        public int ArmorAbsorbed { get; set; }
-        public int HealthLost { get; set; }
-        public int EnemyHealthRemaining { get; set; }
-        public bool Victory { get; set; }
+        result.BossDefeated = result.Victory && enemy.IsBoss;
+        return result;
     }
 }

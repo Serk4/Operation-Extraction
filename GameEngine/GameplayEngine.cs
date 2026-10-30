@@ -24,6 +24,6 @@ public static class GameplayEngine
 
     public static bool CanMoveWithCard(Card card, int distance)
     {
-        return card.Type == CardType.Movement && card.MovementValue >= distance;
+        return card.MovementValue >= distance;
     }
 }

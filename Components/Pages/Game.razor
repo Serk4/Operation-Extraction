@@ -23,168 +23,240 @@ else
     var requiredMovementCards = GameState.GetRequiredCardsForSelectedTarget();
     var currentPositionLabel = FormatCoordinate(session.Player.X, session.Player.Y);
     var targetExfilLabel = session.CurrentTargetExfil is null
-        ? "Not set"
+        ? "Not selected"
         : $"{session.CurrentTargetExfil.Name} ({FormatCoordinate(session.CurrentTargetExfil.X, session.CurrentTargetExfil.Y)})";
 
-    <div class="mobile-shell game-shell">
-        <div class="panel hero-match-card">
-            <div class="section-header tight-header">
-                <span class="eyebrow">Hero Card</span>
-                <h2>@session.SelectedHero.Name</h2>
-            </div>
-            <p class="hero-match-meta">@session.SelectedHero.Role • @session.SelectedHero.Specialty</p>
+    if (session.Phase == GamePhase.MatchComplete)
+    {
+        <div class="mobile-shell game-shell">
+            <div class="panel result-panel">
+                <div class="section-header tight-header">
+                    <span class="eyebrow">End Results</span>
+                    <h2 class="@(session.IsExtracted ? "mission-success" : "mission-failed")">
+                        @(session.IsExtracted ? "MISSION SUCCESS" : "MISSION FAILED")
+                    </h2>
+                </div>
 
-            <div class="hero-stats-grid">
-                <div class="stat-box">
-                    <span>Health (Base / Current)</span>
-                    <strong>@session.SelectedHero.MaxHealth / @session.Player.Health</strong>
+                <div class="hero-stats-grid">
+                    <div class="stat-box">
+                        <span>Hero</span>
+                        <strong>@session.SelectedHero.Name</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>Health (Start / End)</span>
+                        <strong>@session.Stats.StartingHealth / @session.Player.Health</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>Final Score</span>
+                        <strong>@GameState.CalculateFinalScore()</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>Rating</span>
+                        <strong>@GameState.GetFinalRating()</strong>
+                    </div>
                 </div>
-                <div class="stat-box">
-                    <span>Armor (Base / Current)</span>
-                    <strong>@session.SelectedHero.Armor / @session.Player.Armor</strong>
-                </div>
-                <div class="stat-box">
-                    <span>Gun (Base / Current)</span>
-                    <strong>@session.SelectedHero.GunStrength / @session.Player.GunStrength</strong>
-                </div>
-                <div class="stat-box">
-                    <span>Movement (Base)</span>
-                    <strong>@session.SelectedHero.Movement</strong>
-                </div>
-                <div class="stat-box">
-                    <span>Turn</span>
-                    <strong>@session.TurnNumber</strong>
-                </div>
-                <div class="stat-box">
-                    <span>Status</span>
-                    <strong>@GetMatchStatusLabel(session)</strong>
-                </div>
-            </div>
 
-            <div class="hero-card-footer">
-                <span>POS @currentPositionLabel</span>
-                <span>EXFIL @targetExfilLabel</span>
+                <h3 class="subsection-title">Match Statistics</h3>
+                <div class="hero-stats-grid">
+                    <div class="stat-box"><span>Turns Played</span><strong>@session.Stats.TurnsPlayed</strong></div>
+                    <div class="stat-box"><span>Tiles Traveled</span><strong>@session.Stats.TilesTraveled</strong></div>
+                    <div class="stat-box"><span>POIs Visited</span><strong>@session.Stats.PoisVisited</strong></div>
+                    <div class="stat-box"><span>Dynamic POIs Visited</span><strong>@session.Stats.DynamicPoisVisited</strong></div>
+                </div>
+
+                <h3 class="subsection-title">Combat Statistics</h3>
+                <div class="hero-stats-grid">
+                    <div class="stat-box"><span>Enemies Defeated</span><strong>@session.Stats.EnemiesDefeated</strong></div>
+                    <div class="stat-box"><span>Bosses Defeated</span><strong>@session.Stats.BossesDefeated</strong></div>
+                    <div class="stat-box"><span>Damage Dealt</span><strong>@session.Stats.DamageDealt</strong></div>
+                    <div class="stat-box"><span>Damage Taken</span><strong>@session.Stats.DamageTaken</strong></div>
+                </div>
+
+                <h3 class="subsection-title">Extracted Resources</h3>
+                <div class="hero-stats-grid">
+                    <div class="stat-box"><span>Cash</span><strong>@session.Resources.Cash</strong></div>
+                    <div class="stat-box"><span>Materials</span><strong>@session.Resources.Materials</strong></div>
+                    <div class="stat-box"><span>Intel</span><strong>@(session.Resources.Intel + session.Resources.ClassifiedIntel)</strong></div>
+                    <div class="stat-box"><span>Medical Supplies</span><strong>@session.Resources.MedicalSupplies</strong></div>
+                    <div class="stat-box"><span>Armor Supplies</span><strong>@session.Resources.ArmorSupplies</strong></div>
+                    <div class="stat-box"><span>Weapon Upgrades</span><strong>@session.Resources.WeaponUpgrades</strong></div>
+                </div>
+
+                <div class="result-actions">
+                    <button class="btn btn-primary action-button" @onclick="PlayAgain">Play Again</button>
+                    <button class="btn btn-outline-secondary action-button" @onclick="ReturnToMainMenu">Return To Main Menu</button>
+                </div>
             </div>
         </div>
+    }
+    else
+    {
+        <div class="mobile-shell game-shell">
+            <div class="panel hero-match-card">
+                <div class="section-header tight-header">
+                    <span class="eyebrow">Hero Card</span>
+                    <h2>@session.SelectedHero.Name</h2>
+                </div>
+                <p class="hero-match-meta">@session.SelectedHero.Role • @session.SelectedHero.Specialty</p>
 
-        <div class="panel map-panel">
-            <div class="section-header tight-header">
-                <span class="eyebrow">Tactical Map</span>
-                <h2>10x10 Zone</h2>
+                <div class="hero-stats-grid">
+                    <div class="stat-box">
+                        <span>Health (Base / Current)</span>
+                        <strong>@session.SelectedHero.MaxHealth / @session.Player.Health</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>Armor (Base / Current)</span>
+                        <strong>@session.SelectedHero.Armor / @session.Player.Armor</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>Gun (Base / Current)</span>
+                        <strong>@session.SelectedHero.GunStrength / @session.Player.GunStrength</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>Movement (Base)</span>
+                        <strong>@session.SelectedHero.Movement</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>Turn</span>
+                        <strong>@session.TurnNumber</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>Phase</span>
+                        <strong>@session.Phase</strong>
+                    </div>
+                </div>
+
+                <div class="hero-card-footer">
+                    <span>POS @currentPositionLabel</span>
+                    <span>EXFIL @targetExfilLabel</span>
+                </div>
             </div>
 
-            @if (selectedDestination is not null)
-            {
-                <div class="route-summary">
-                    <span>Distance: @distance</span>
-                    <span>Movement Progress: @session.PendingMovement / @distance</span>
-                    <span>Required movement cards: @requiredMovementCards</span>
-                </div>
-            }
-
-            <div class="indexed-map-shell">
-                <div class="map-axis-x">
-                    @for (var x = 0; x < 10; x++)
-                    {
-                        <span>@GetColumnLabel(x)</span>
-                    }
+            <div class="panel map-panel">
+                <div class="section-header tight-header">
+                    <span class="eyebrow">Tactical Map</span>
+                    <h2>10x10 Zone</h2>
                 </div>
 
-                <div class="indexed-map-body">
-                    <div class="map-axis-y">
-                        @for (var y = 0; y < 10; y++)
+                @if (session.Phase == GamePhase.Infil)
+                {
+                    <div class="route-summary">
+                        <span>Select one <strong>Exfil</strong> marker to begin.</span>
+                    </div>
+                }
+                else if (selectedDestination is not null)
+                {
+                    <div class="route-summary">
+                        <span>Distance: @distance</span>
+                        <span>Movement Progress: @session.PendingMovement / @distance</span>
+                        <span>Required movement cards: @requiredMovementCards</span>
+                    </div>
+                }
+
+                <div class="indexed-map-shell">
+                    <div class="map-axis-x">
+                        @for (var x = 0; x < 10; x++)
                         {
-                            <span>@(y + 1)</span>
+                            <span>@GetColumnLabel(x)</span>
                         }
                     </div>
 
-                    <svg viewBox="0 0 360 360" class="map-svg" role="img" aria-label="Extraction map with coordinates and markers">
-                        @for (var x = 0; x < 10; x++)
-                        {
+                    <div class="indexed-map-body">
+                        <div class="map-axis-y">
                             @for (var y = 0; y < 10; y++)
                             {
-                                var tile = session.Map.Tiles[x, y];
-                                var isPlayer = session.Player.X == x && session.Player.Y == y;
-                                var isSelected = selectedDestination is not null && selectedDestination.X == x && selectedDestination.Y == y;
-                                var color = GetTileColor(tile.Type);
-                                var left = x * 36;
-                                var top = y * 36;
-                                var centerX = left + 17;
-                                var centerY = top + 17;
+                                <span>@(y + 1)</span>
+                            }
+                        </div>
 
-                                <rect x="@left" y="@top" width="34" height="34" rx="6" fill="@color" stroke="@GetStrokeColor(isSelected, isPlayer)" stroke-width="@(isPlayer || isSelected ? 2 : 1)
-" @onclick="() => SelectTile(tile.X, tile.Y)" class="map-tile" />
-
-                                @if (tile.POI is not null && !isPlayer)
+                        <svg viewBox="0 0 360 360" class="map-svg" role="img" aria-label="Extraction map with coordinates and markers">
+                            @for (var x = 0; x < 10; x++)
+                            {
+                                @for (var y = 0; y < 10; y++)
                                 {
-                                    @if (tile.POI is InfilPoint)
+                                    var tile = session.Map.Tiles[x, y];
+                                    var isPlayer = session.Player.X == x && session.Player.Y == y;
+                                    var isSelected = selectedDestination is not null && selectedDestination.X == x && selectedDestination.Y == y;
+                                    var color = GetTileColor(tile.Terrain);
+                                    var left = x * 36;
+                                    var top = y * 36;
+                                    var centerX = left + 17;
+                                    var centerY = top + 17;
+
+                                    <rect x="@left" y="@top" width="34" height="34" rx="6" fill="@color" stroke="@GetStrokeColor(isSelected, isPlayer)" stroke-width="@(isPlayer || isSelected ? 2 : 1)"
+                                          @onclick="() => SelectTile(tile.X, tile.Y)" class="map-tile" />
+
+                                    @if (tile.TileType == TileType.Infil && !isPlayer)
                                     {
                                         <polygon points="@GetTrianglePoints(centerX, centerY)" fill="#6ee7b7" />
                                     }
-                                    else if (tile.POI is ExfilPoint)
+                                    else if (tile.TileType == TileType.Exfil && !isPlayer)
                                     {
                                         <polygon points="@GetDiamondPoints(centerX, centerY)" fill="#fcd34d" />
                                     }
-                                    else if (tile.POI.IsDynamic)
+                                    else if (tile.TileType == TileType.DynamicPOI && !isPlayer)
                                     {
                                         <rect x="@(centerX - 5)" y="@(centerY - 5)" width="10" height="10" fill="#93c5fd" />
                                     }
-                                    else
+                                    else if (tile.TileType == TileType.POI && !isPlayer)
                                     {
                                         <circle cx="@centerX" cy="@centerY" r="6" fill="#c4b5fd" />
                                     }
-                                }
 
-                                @if (isPlayer)
-                                {
-                                    <circle cx="@centerX" cy="@centerY" r="8" fill="#f87171" />
+                                    @if (isPlayer)
+                                    {
+                                        <circle cx="@centerX" cy="@centerY" r="8" fill="#f87171" />
+                                    }
                                 }
                             }
-                        }
-                    </svg>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="map-legend">
+                    <span><strong>● Red</strong> Operator</span>
+                    <span><strong>▲ Green</strong> Infil</span>
+                    <span><strong>◆ Gold</strong> Exfil</span>
+                    <span><strong>● Purple</strong> Fixed POI</span>
+                    <span><strong>■ Blue</strong> Dynamic POI</span>
                 </div>
             </div>
 
-            <div class="map-legend">
-                <span><strong>● Red</strong> Operator</span>
-                <span><strong>▲ Green</strong> Infil</span>
-                <span><strong>◆ Gold</strong> Exfil</span>
-                <span><strong>● Purple</strong> Fixed location</span>
-                <span><strong>■ Blue</strong> Dynamic location</span>
+            @if (session.Phase == GamePhase.Exploration)
+            {
+                <div class="panel hand-panel">
+                    <div class="section-header tight-header">
+                        <span class="eyebrow">Movement Hand</span>
+                        <h2>Available Cards</h2>
+                    </div>
+
+                    <div class="hand-grid">
+                        @foreach (var card in session.CurrentHand)
+                        {
+                            <button class="card-button" @onclick="() => PlayCard(card)">
+                                <span class="card-name">@card.Name</span>
+                                <span class="card-meta">Move @card.MovementValue</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="panel log-panel">
+                <div class="section-header tight-header">
+                    <span class="eyebrow">Mission Log</span>
+                    <h2>Events</h2>
+                </div>
+
+                <ul class="event-log">
+                    @foreach (var entry in session.EventLog.TakeLast(8).Reverse())
+                    {
+                        <li>@entry</li>
+                    }
+                </ul>
             </div>
         </div>
-
-        <div class="panel log-panel">
-            <div class="section-header tight-header">
-                <span class="eyebrow">Mission Log</span>
-                <h2>Events</h2>
-            </div>
-
-            <ul class="event-log">
-                @foreach (var entry in session.EventLog.TakeLast(6).Reverse())
-                {
-                    <li>@entry</li>
-                }
-            </ul>
-        </div>
-
-        <div class="panel hand-panel">
-            <div class="section-header tight-header">
-                <span class="eyebrow">Hand</span>
-                <h2>Available Cards</h2>
-            </div>
-
-            <div class="hand-grid">
-                @foreach (var card in session.CurrentHand)
-                {
-                    <button class="card-button" @onclick="() => PlayCard(card)">
-                        <span class="card-name">@card.Name</span>
-                        <span class="card-meta">@GetCardLabel(card)</span>
-                    </button>
-                }
-            </div>
-        </div>
-    </div>
+    }
 }
 
 @code {
@@ -203,13 +275,23 @@ else
         GameState.PlayCard(card);
     }
 
-    private static string GetTileColor(TileType type) => type switch
+    private void PlayAgain()
     {
-        TileType.Open => "#1f2937",
-        TileType.Forest => "#14532d",
-        TileType.Ruins => "#7c2d12",
-        TileType.Street => "#374151",
-        TileType.Water => "#0f172a",
+        GameState.RestartMatch();
+    }
+
+    private void ReturnToMainMenu()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private static string GetTileColor(TerrainType terrain) => terrain switch
+    {
+        TerrainType.Open => "#1f2937",
+        TerrainType.Forest => "#14532d",
+        TerrainType.Ruins => "#7c2d12",
+        TerrainType.Street => "#374151",
+        TerrainType.Water => "#0f172a",
         _ => "#1f2937"
     };
 
@@ -226,21 +308,6 @@ else
         }
 
         return "#475569";
-    }
-
-    private static string GetCardLabel(Card card)
-    {
-        if (card.Type == CardType.Movement)
-        {
-            return $"Move {card.MovementValue}";
-        }
-
-        if (card.Type == CardType.Combat)
-        {
-            return card.Damage > 0 ? $"+{card.Damage} DMG" : "Combat";
-        }
-
-        return card.HealValue > 0 ? $"HEAL {card.HealValue}" : $"ARM {card.ArmorValue}";
     }
 
     private static string GetColumnLabel(int index)
@@ -277,25 +344,5 @@ else
         var leftY = centerY;
 
         return $"{topX},{topY} {rightX},{rightY} {bottomX},{bottomY} {leftX},{leftY}";
-    }
-
-    private static string GetMatchStatusLabel(GameSession session)
-    {
-        if (session.IsExtracted)
-        {
-            return "Extracted";
-        }
-
-        if (session.IsDefeated)
-        {
-            return "Defeated";
-        }
-
-        if (session.ActiveEnemy is not null)
-        {
-            return "In Combat";
-        }
-
-        return "Active";
     }
 }

@@ -11,10 +11,13 @@ public interface IGameStateService
     GameSession? Session { get; }
     void InitializeHeroes();
     void StartNewMatch(Hero hero);
+    void RestartMatch();
     void SelectDestination(int x, int y);
     void PlayCard(Card card);
     int GetDistanceToSelectedTarget();
     int GetRequiredCardsForSelectedTarget();
+    int CalculateFinalScore();
+    string GetFinalRating();
 }
 
 /// <summary>
@@ -30,26 +33,47 @@ public interface IMapService
 }
 
 /// <summary>
-/// Defines the contract for the deck and hand lifecycle.
+/// Defines movement deck setup and draw behavior.
 /// </summary>
-public interface ICardService
+public interface IMovementDeckService
 {
-    Deck CreateDeck();
-    List<Card> DrawOpeningHand(Deck deck, int count);
+    Deck CreateMovementDeck();
+    List<Card> DrawCards(GameSession session, int count);
+    void DiscardCard(GameSession session, Card card);
 }
 
 /// <summary>
-/// Defines the encounter resolution contract.
+/// Defines encounter deck setup and draw behavior.
 /// </summary>
-public interface IEncounterService
+public interface IEncounterDeckService
 {
-    Encounter? RollEncounter(GameSession session, int x, int y);
+    List<EncounterDeckCard> CreateEncounterDeck();
+    EncounterDeckCard DrawEncounter(GameSession session);
+    void DiscardEncounter(GameSession session, EncounterDeckCard card);
 }
 
 /// <summary>
-/// Defines the combat resolution contract.
+/// Defines loot deck setup and draw behavior.
+/// </summary>
+public interface ILootDeckService
+{
+    List<LootDeckCard> CreateLootDeck();
+    LootDeckCard DrawLoot(GameSession session);
+    void DiscardLoot(GameSession session, LootDeckCard card);
+}
+
+/// <summary>
+/// Defines deterministic combat resolution.
 /// </summary>
 public interface ICombatService
 {
-    CombatService.CombatResult ResolveCombat(Player player, Enemy enemy, Card card);
+    CombatResult ResolveCombat(Player player, Enemy enemy);
+}
+
+/// <summary>
+/// Defines tile resolution behavior after successful movement.
+/// </summary>
+public interface ITileResolutionService
+{
+    TileResolutionResult ResolveTile(GameSession session, MapTile tile);
 }
